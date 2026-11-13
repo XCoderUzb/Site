@@ -9,7 +9,11 @@ const toast=t=>{const e=$("#ts");e.textContent=t;e.classList.add("on");setTimeou
 const gh=location.hostname.endsWith("github.io"),base=gh?"/"+location.pathname.split("/")[1]+"/":"/";
 const SUB=!gh&&C.DOMAIN&&location.hostname.endsWith("."+C.DOMAIN)?location.hostname.slice(0,-C.DOMAIN.length-1):"";
 let SL="",SITE=null,MG=[],OWN=false,P=[],BASES=[],CT=0,QS="",AT="mg",CS="desc",CM=null,EDIT=null,G=[],CVR="",PGB=[];
-const CF={types:[],genres:[],status:"",sort:"rating",open:false};
+const CF={types:[],genres:[],status:"",sort:"pop",dir:"desc",q:"",bmin:"",bmax:"",ymin:"",ymax:"",open:false,sopen:false};
+const SN={a:12,c:10,k:12};
+const tsM=m=>Math.max(m.at||0,...(m.chapters||[]).map(c=>c.at||0));
+const pgr=(l,key)=>{const n=SN[key];return `<div class="gr">${l.slice(0,n).map(card).join("")}</div>${l.length>12?`<div class="mrow">${n<l.length?`<button class="bt" data-a="more" data-k="${key}">Ko'proq (${l.length-n})</button>`:""}${n>12?`<button class="bt" data-a="less" data-k="${key}">Kamroq</button>`:""}</div>`:""}`};
+act.more=async d=>{SN[d.k]+=12;const y=scrollY;await route();scrollTo(0,y)};act.less=d=>{SN[d.k]=12;route()};
 const url=(...a)=>base+(SUB?"":SL?SL+"/":"")+a.filter(x=>x!==""&&x!=null).map(encodeURIComponent).join("/");
 const murl=(m,n)=>url(m.type.toLowerCase(),slug(m.title)||m.id,n);
 const sp=()=>"/api/s/"+encodeURIComponent(SL);
@@ -51,35 +55,46 @@ app(`<header class="top"><a data-l href="${url()}" class="logo">${E(SITE.title)}
 const card=m=>`<a data-l href="${murl(m)}" class="cd"><div class="cp"><img src="${E(m.cover)}" loading="lazy" draggable="false"><i class="rt">★ ${rt(m)}</i>${fresh(m)?'<i class="nw">YANGI BOB</i>':""}</div><b>${E(m.title)}</b><small>${E(m.type)}</small></a>`;
 const SEC={
 search:()=>`<input class="q" readonly placeholder="🔍 Manga qidirish..." data-a="gosearch">`,
-carousel:()=>{const l=[...new Set([...topL().slice(0,5),...MG.filter(fresh)])].slice(0,10);return l.length?`<div class="car" id="car">${l.map(m=>`<a data-l href="${murl(m)}" class="bn" style="background-image:url('${E(m.cover)}')"><b>${E(m.title)}</b></a>`).join("")}</div>`:""},
-top:()=>MG.length?`<h2>Top</h2>${topL().slice(0,7).map((m,i)=>`<a data-l href="${murl(m)}" class="tr"><span class="rk">${i+1}</span><img src="${E(m.cover)}" loading="lazy"><div><b>${E(m.title)}</b><small>${E(m.type)} · ★ ${rt(m)}</small></div><em>👁 ${m.reads||0}</em></a>`).join("")}`:"",
-fresh:()=>{const l=[];MG.forEach(m=>(m.chapters||[]).forEach(c=>{if(Date.now()-c.at<864e5)l.push([m,c])}));l.sort((a,b)=>b[1].at-a[1].at);
-return l.length?`<h2>Yangi boblar</h2>${l.slice(0,12).map(x=>`<a data-l href="${murl(x[0],x[1].num)}" class="tr"><img src="${E(x[0].cover)}" loading="lazy"><div><b>${E(x[0].title)}</b><small>${x[1].num}-bob · ${ago(x[1].at)}</small></div><em class="nw2">YANGI</em></a>`).join("")}`:""},
-all:()=>MG.length?`<h2>Barchasi</h2><div class="gr">${[...MG].sort((a,b)=>b.at-a.at).map(card).join("")}</div>`:'<p class="mu c">Hozircha manga yo\'q.</p>'};
+carousel:()=>{const l=[...new Set([...topL().slice(0,5),...MG.filter(fresh)])].slice(0,10);return l.length?`<div class="car" id="car">${l.map(m=>`<a data-l href="${murl(m)}" class="bn" style="background-image:url('${E(m.cover)}')"><i class="rt">★ ${rt(m)}</i><b>${E(m.title)}</b></a>`).join("")}</div>`:""},
+top:()=>MG.length?`<section class="box"><h2>Top</h2>${topL().slice(0,7).map((m,i)=>`<a data-l href="${murl(m)}" class="tr"><span class="rk">${i+1}</span><img src="${E(m.cover)}" loading="lazy"><div><b>${E(m.title)}</b><small>${E(m.type)} · ★ ${rt(m)}</small></div><em>👁 ${m.reads||0}</em></a>`).join("")}</section>`:"",
+fresh:()=>{const l=MG.map(m=>[m,(m.chapters||[]).filter(c=>Date.now()-c.at<864e5).sort((a,b)=>b.at-a.at)]).filter(x=>x[1].length).sort((a,b)=>b[1][0].at-a[1][0].at);
+return l.length?`<h2>So'nggi yangilanishlar</h2>${l.slice(0,10).map(x=>`<div class="upd"><a data-l href="${murl(x[0])}" class="cp"><img src="${E(x[0].cover)}" loading="lazy"><i class="rt">★ ${rt(x[0])}</i></a><div><a data-l href="${murl(x[0])}"><b>${E(x[0].title)}</b></a>${x[1].slice(0,3).map(c=>`<a data-l href="${murl(x[0],c.num)}" class="ur"><span>Bob ${c.num}</span><small>${ago(c.at)}</small></a>`).join("")}</div></div>`).join("")}`:""},
+all:()=>MG.length?`<h2>Barchasi</h2>${pgr([...MG].sort((a,b)=>tsM(b)-tsM(a)),"a")}`:'<p class="mu c">Hozircha manga yo\'q.</p>'};
 function home(){shell((SITE.cfg.sections||[]).filter(s=>s.on&&SEC[s.k]).map(s=>SEC[s.k]()).join(""),"");const c=$("#car");
-if(c)CT=setInterval(()=>{const w=c.clientWidth,i=Math.round(c.scrollLeft/w)+1;c.scrollTo({left:i*w>=c.scrollWidth-4?0:i*w,behavior:"smooth"})},3500)}
+if(c)CT=setInterval(()=>{const f=c.firstElementChild;if(!f)return;const w=f.offsetWidth+10,i=Math.round(c.scrollLeft/w)+1;c.scrollTo({left:i*w>c.scrollWidth-c.clientWidth+4?0:i*w,behavior:"smooth"})},3500)}
 act.gosearch=()=>{history.pushState(null,"",url("search"));route()};
 act.soon=()=>toast("Tez orada");
 
 /* ---------- Qidiruv, Katalog, Playlist, Profil ---------- */
 const res=()=>{const q=QS.toLowerCase();return MG.filter(m=>(m.title+" "+(m.author||"")+" "+(m.tags||[]).join(" ")).toLowerCase().includes(q)).map(card).join("")||'<p class="mu">Hech narsa topilmadi</p>'};
 function search(){shell(`<input class="q" id="qi" placeholder="Nom, muallif yoki teg..." value="${E(QS)}"><div class="gr" id="sg">${res()}</div>`,"search");$("#qi").focus()}
-const cres=()=>{const l=MG.filter(m=>(!CF.types.length||CF.types.includes(m.type))&&(!CF.genres.length||CF.genres.every(g=>(m.genres||[]).includes(g)))&&(!CF.status||m.status==CF.status));
-const s={rating:(a,b)=>(b.rating||0)-(a.rating||0),reads:(a,b)=>(b.reads||0)-(a.reads||0),new:(a,b)=>b.at-a.at,name:(a,b)=>a.title.localeCompare(b.title)}[CF.sort];return l.sort(s).map(card).join("")||'<p class="mu">Topilmadi</p>'};
-function catalog(){const gs=[...new Set(MG.flatMap(m=>m.genres||[]))];
-shell(`<div class="row"><h2>Katalog</h2><span><select id="cs" class="in sm">${[["rating","Reyting"],["reads","Ko'p o'qilgan"],["new","Yangi"],["name","Nomi"]].map(o=>`<option value="${o[0]}" ${CF.sort==o[0]?"selected":""}>${o[1]}</option>`).join("")}</select> <button class="bt" data-a="cfl">Filtr</button></span></div>
-<div class="fp" ${CF.open?"":"hidden"}><b>Turi</b><div class="chips">${TYPES.map(t=>chip("ct",t,CF.types.includes(t))).join("")}</div><b>Janrlar</b><div class="chips">${gs.map(g=>chip("cg",g,CF.genres.includes(g))).join("")||'<small class="mu">Janr yo\'q</small>'}</div><b>Holat</b><div class="chips">${["Ongoing","Tugallangan"].map(t=>chip("cst",t,CF.status==t)).join("")}</div><button class="bt" data-a="cclr">Tozalash</button></div><div class="gr" id="cg2">${cres()}</div>`,"catalog")}
+const SORTS=[["pop","Mashhurlik"],["rating","Reyting"],["chapters","Boblar soni"],["date","Chiqarilgan sana"],["name","Nomi (A-Z)"]];
 const tg=(a,v)=>a.includes(v)?a.filter(x=>x!=v):[...a,v];
-act.cfl=()=>{CF.open=!CF.open;catalog()};act.ct=d=>{CF.types=tg(CF.types,d.v);catalog()};act.cg=d=>{CF.genres=tg(CF.genres,d.v);catalog()};act.cst=d=>{CF.status=CF.status==d.v?"":d.v;catalog()};act.cclr=()=>{CF.types=[];CF.genres=[];CF.status="";catalog()};
-function playlist(){const l=PL().map(id=>MG.find(m=>m.id==id)).filter(Boolean);shell(`<h2>Playlist</h2>${l.length?`<div class="gr">${l.map(card).join("")}</div>`:'<p class="mu">Hali hech narsa saqlanmagan. Manga sahifasidagi ♡ ni bosing; yangi bob chiqsa "YANGI BOB" belgisi chiqadi.</p>'}`,"playlist")}
-function profile(){const L=SITE.cfg||{},lk=(t,u)=>u?`<a class="mb" href="${E(u)}" target="_blank" rel="noopener">${t}</a>`:`<a class="mb" data-a="soon">${t}</a>`;
-shell(`<h2>Profil</h2>${lk("Obuna olish",L.sub)}${lk("Qo'llab-quvvatlash",L.support)}${lk("Ilovaga buyurtma berish",L.order)}${OWN?`<a class="mb red" data-l href="${url("admin")}">Admin paneli</a>`:""}
+const cres=()=>{const l=MG.filter(m=>{const n=(m.chapters||[]).length;return(!CF.q||m.title.toLowerCase().includes(CF.q.toLowerCase()))&&(!CF.types.length||CF.types.includes(m.type))&&(!CF.genres.length||CF.genres.every(g=>(m.genres||[]).includes(g)))&&(!CF.status||m.status==CF.status)&&(CF.bmin===""||n>=+CF.bmin)&&(CF.bmax===""||n<=+CF.bmax)&&(CF.ymin===""||m.year>=+CF.ymin)&&(CF.ymax===""||m.year<=+CF.ymax)});
+const k={pop:m=>m.reads||0,rating:m=>m.rating||0,chapters:m=>(m.chapters||[]).length,date:m=>m.at||0};l.sort((a,b)=>CF.sort=="name"?a.title.localeCompare(b.title):k[CF.sort](a)-k[CF.sort](b));if(CF.dir=="desc")l.reverse();return l};
+const cgrid=()=>{const l=cres();return l.length?pgr(l,"k"):'<p class="mu c">Hech narsa topilmadi</p>'};
+function catalog(){const gs=[...new Set(MG.flatMap(m=>m.genres||[]))];
+shell(`<div class="row"><h2>Katalog</h2><span><button class="ib" data-a="sopen">⇅</button><button class="ib" data-a="fopen">☰ Filtr</button></span></div><input class="q" id="cq2" placeholder="Nom bo'yicha qidiring" value="${E(CF.q)}"><div id="cgd">${cgrid()}</div>
+${CF.sopen?`<div class="mdl"><div class="mbg" data-a="sclose"></div><div class="mc"><div class="row"><b>Saralash</b><button class="ib" data-a="sclose">✕</button></div>${SORTS.map(o=>`<label class="rd"><input type="radio" name="so" ${CF.sort==o[0]?"checked":""} data-a="sset" data-v="${o[0]}"> ${o[1]}</label>`).join("")}<hr>${[["desc","Kamayish bo'yicha"],["asc","O'sish bo'yicha"]].map(o=>`<label class="rd"><input type="radio" name="sd" ${CF.dir==o[0]?"checked":""} data-a="sdir" data-v="${o[0]}"> ${o[1]}</label>`).join("")}</div></div>`:""}
+${CF.open?`<div class="pnl"><div class="row ph"><button class="ib" data-a="fclose">‹</button><b>Filtrlar</b><span></span></div><div class="pb"><h4>Janrlar</h4><div class="chips">${gs.map(g=>chip("cg",g,CF.genres.includes(g))).join("")||'<small class="mu">Janr yo\'q</small>'}</div><h4>Boblar soni</h4><div class="two"><input class="in" id="f_b1" type="number" placeholder="Dan" value="${CF.bmin}"><input class="in" id="f_b2" type="number" placeholder="Gacha" value="${CF.bmax}"></div><h4>Chiqarilgan yili</h4><div class="two"><input class="in" id="f_y1" type="number" placeholder="Dan" value="${CF.ymin}"><input class="in" id="f_y2" type="number" placeholder="Gacha" value="${CF.ymax}"></div><h4>Turi</h4><div class="chips">${TYPES.map(t=>chip("ct",t,CF.types.includes(t))).join("")}</div><h4>Holat</h4><div class="chips">${["Ongoing","Tugallangan"].map(t=>chip("cst",t,CF.status==t)).join("")}</div></div><div class="pf2"><button class="bt" data-a="cclr">Tozalash</button><button class="btn" data-a="fclose">Qo'llash</button></div></div>`:""}`,"catalog")}
+act.fopen=()=>{CF.open=true;catalog()};act.fclose=()=>{CF.open=false;catalog()};act.sopen=()=>{CF.sopen=true;catalog()};act.sclose=()=>{CF.sopen=false;catalog()};
+act.sset=d=>{CF.sort=d.v;CF.sopen=false;catalog()};act.sdir=d=>{CF.dir=d.v;CF.sopen=false;catalog()};
+act.ct=d=>{CF.types=tg(CF.types,d.v);catalog()};act.cg=d=>{CF.genres=tg(CF.genres,d.v);catalog()};act.cst=d=>{CF.status=CF.status==d.v?"":d.v;catalog()};
+act.cclr=()=>{Object.assign(CF,{types:[],genres:[],status:"",bmin:"",bmax:"",ymin:"",ymax:"",q:""});catalog()};
+document.addEventListener("input",e=>{const t=e.target,m={f_b1:"bmin",f_b2:"bmax",f_y1:"ymin",f_y2:"ymax"};if(m[t.id])CF[m[t.id]]=t.value;else if(t.id=="cq2"){CF.q=t.value;SN.k=12;$("#cgd").innerHTML=cgrid()}});
+let PT="s";
+function playlist(){const ids=PT=="s"?PL():((LS.hist||{})[SL]||[]),l=ids.map(id=>MG.find(m=>m.id==id)).filter(Boolean);
+shell(`<h2>Kutubxona</h2><div class="tabs"><a class="${PT=="s"?"on":""}" data-a="ptab" data-v="s">Saqlanganlar</a><a class="${PT=="h"?"on":""}" data-a="ptab" data-v="h">Tarix</a></div>${l.length?`<div class="gr">${l.map(card).join("")}</div>`:`<p class="mu c" style="margin-top:50px">Bu bo'limda tayl yo'q.</p><a class="bt main c" data-l href="${url("catalog")}">Katalogga o'tish</a>`}`,"playlist")}
+act.ptab=d=>{PT=d.v;playlist()};
+function profile(){const L=SITE.cfg||{},items=L.items||[{t:"Obuna olish",u:L.sub},{t:"Qo'llab-quvvatlash",u:L.support}],lk=(t,u)=>u?`<a class="mb" href="${E(u)}" target="_blank" rel="noopener">${E(t)}</a>`:`<a class="mb" data-a="soon">${E(t)}</a>`;
+shell(`<h2>Profil</h2>${items.map(x=>lk(x.t,x.u)).join("")}${lk("Ilovaga buyurtma berish",C.ORDER||"https://telegram.me/Shadow_Sxi")}${OWN?`<a class="mb red" data-l href="${url("admin")}">Admin paneli</a>`:""}
 ${LS.tok?`<p class="mu">Kirgan: ${E(LS.user.email)} <button class="bt" data-a="logout">Chiqish</button></p>`:`<p class="mu">Sayt egasimisiz? Google orqali kiring:</p><div id="gbtn"></div>`}`,"profile");if(!LS.tok)gbtn()}
 
 /* ---------- Manga sahifasi va o'qish ---------- */
 function crows(m,q){q=(q||"").trim().toLowerCase();let cs=[...(m.chapters||[])].sort((a,b)=>CS=="asc"?a.num-b.num:b.num-a.num);if(q)cs=cs.filter(c=>String(c.num).includes(q)||(c.title||"").toLowerCase().includes(q));
-return cs.map(c=>`<a data-l href="${murl(m,c.num)}" class="cr"><b>${c.num}-bob${c.title?" · "+E(c.title):""}</b><span class="mu">👁 ${c.views||0} · ${fmtD(c.at)}</span></a>`).join("")||'<p class="mu">Bob topilmadi</p>'}
-function mpage(m){const cs=[...(m.chapters||[])].sort((a,b)=>a.num-b.num),first=cs[0],my=LS.rate[SL+m.id]||0,on=PL().includes(m.id);
+const n=q?cs.length:SN.c;return (cs.slice(0,n).map(c=>`<a data-l href="${murl(m,c.num)}" class="cr"><b>${c.num}-bob${c.title?" · "+E(c.title):""}</b><span class="mu">👁 ${c.views||0} · ${fmtD(c.at)}</span></a>`).join("")||'<p class="mu">Bob topilmadi</p>')+(!q&&cs.length>10?`<div class="mrow">${n<cs.length?`<button class="bt" data-a="cmore">Ko'proq (${cs.length-n})</button>`:""}${n>10?`<button class="bt" data-a="cless">Kamroq</button>`:""}</div>`:"")}
+act.cmore=()=>{SN.c+=10;const m=find(P[0],P[1]);$("#cl").innerHTML=crows(m,$("#cq").value)};act.cless=()=>{SN.c=10;const m=find(P[0],P[1]);$("#cl").innerHTML=crows(m,$("#cq").value)};
+function mpage(m){SN.c=10;const cs=[...(m.chapters||[])].sort((a,b)=>a.num-b.num),first=cs[0],my=LS.rate[SL+m.id]||0,on=PL().includes(m.id);
 const sim=MG.filter(x=>x.id!=m.id).map(x=>[x,(x.genres||[]).filter(g=>(m.genres||[]).includes(g)).length]).filter(o=>o[1]).sort((a,b)=>b[1]-a[1]).slice(0,6).map(o=>o[0]);
 shell(`<div class="dh"><img src="${E(m.cover)}"><div><h1>${E(m.title)}</h1><p class="mu">${E(m.type)} · ${E(m.status)}<br>${[m.author,m.studio,m.year].filter(Boolean).map(E).join(" · ")}</p><p class="rtg">★ ${rt(m)} <span class="mu">(${m.rc||0})</span> · ${cs.length} bob · 👁 ${m.reads||0}</p><button class="bt" data-a="pl" data-id="${m.id}">${on?"♥ Saqlangan":"♡ Playlistga"}</button></div></div>
 <p>${E(m.desc)}</p><div class="chips">${(m.genres||[]).concat(m.tags||[]).map(g=>`<span class="ch">${E(g)}</span>`).join("")}</div>
@@ -91,7 +106,7 @@ act.csrt=()=>{CS=CS=="asc"?"desc":"asc";mpage(find(P[0],P[1]))};
 act.rate=d=>{LS.rate[SL+d.id]=+d.v;sv();document.querySelectorAll("#stars span").forEach((s,i)=>s.classList.toggle("on",i<+d.v));api(sp()+"/rate/"+d.id,{method:"POST",body:{uid:LS.uid,v:+d.v*2}}).catch(()=>{});toast("Bahoyingiz: "+d.v*2+"/10 ✓")};
 async function reader(m,n){const c=(m.chapters||[]).find(x=>String(x.num)==n);if(!c)return shell('<div class="ld"><h2>Bob topilmadi</h2></div>');
 app('<div class="ld">Yuklanmoqda...</div>');let pg;try{pg=(await api(sp()+"/chapter/"+c.id)).pages}catch(e){return shell(`<div class="ld"><p>${E(e.message)}</p></div>`)}
-api(sp()+"/read/"+m.id+"/"+c.id,{method:"POST"}).catch(()=>{});
+api(sp()+"/read/"+m.id+"/"+c.id,{method:"POST"}).catch(()=>{});LS.hist=LS.hist||{};{const h=LS.hist[SL]||(LS.hist[SL]=[]),i=h.indexOf(m.id);if(i>=0)h.splice(i,1);h.unshift(m.id);if(h.length>50)h.length=50;sv()}
 const cs=[...m.chapters].sort((a,b)=>a.num-b.num),i=cs.indexOf(c),ar=(x,t)=>x?`<a data-l href="${murl(m,x.num)}">${t}</a>`:`<span>${t}</span>`;
 app(`<div class="rb"><a data-l href="${murl(m)}">‹</a><div class="rtt"><b>${E(m.title)} · ${c.num}-bob</b><small id="rp">1/${pg.length} · 0%</small></div><div class="rbar"><i id="rpb"></i></div></div><div class="pgs" id="pgs">${pg.map(p=>{const u=p.u||p;return `<img src="${E(u)}" draggable="false" ${p.w?`loading="lazy" style="aspect-ratio:${p.w}/${p.h}"`:""}>`}).join("")}</div><div class="rf">${ar(cs[i-1],"‹ Oldingi")}${ar(cs[i+1],"Keyingi ›")}</div>`);
 const g=$("#pgs");onscroll=()=>{const p=$("#rp");if(!p)return;const pc=Math.min(100,Math.round(scrollY/Math.max(1,document.documentElement.scrollHeight-innerHeight)*100)),y=scrollY+innerHeight/3,ch=g.children;let k=0;for(;k<ch.length;k++)if(ch[k].offsetTop+ch[k].offsetHeight>y)break;
@@ -149,10 +164,12 @@ const w=async()=>{while(k<PGB.length&&!fail){const i=k++;try{let u,er;for(let t=
 await Promise.all([w(),w(),w()]);if(fail)return s.textContent="Xato: "+fail.message;
 try{await api(sp()+"/manga/"+CM.id+"/chapter",{method:"POST",body:{num:+n,title:$("#c_t").value.trim(),pages:urls.map((u,i)=>({u,w:PGB[i].w,h:PGB[i].h}))}});await reload();CM=MG.find(x=>x.id==CM.id);PGB=[];toast("Bob qo'shildi ✓");cform(CM)}catch(e){s.textContent="Xato: "+e.message}};
 const cftab=()=>{const c=SITE.cfg,L={search:"Qidiruv",carousel:"Aylanma (banner)",top:"Top",fresh:"Yangi boblar (24 soat)",all:"Barchasi"};
+if(!c.items)c.items=[{t:"Obuna olish",u:c.sub||""},{t:"Qo'llab-quvvatlash",u:c.support||""}];
 return `${F("Sayt nomi",`<input class="in" id="k_t" value="${E(SITE.title)}">`)}<h4>Bosh sahifa bo'limlari</h4>${c.sections.map((s,i)=>`<div class="row"><b>${L[s.k]}</b><span><button class="bt" data-a="sm" data-i="${i}" data-d="-1">↑</button> <button class="bt" data-a="sm" data-i="${i}" data-d="1">↓</button> <button class="bt" data-a="sx" data-i="${i}">${s.on?"✓ Yoqiq":"○ O'chiq"}</button></span></div>`).join("")}
-<h4>Rang</h4><div class="chips">${["#7c5cff","#e11d2e","#ff7a18","#16a34a","#0ea5e9","#ec4899"].map(x=>`<span class="sw" data-a="sc" data-v="${x}" style="background:${x};${c.accent==x?"outline:2px solid #fff":""}"></span>`).join("")}</div>
-${F("Obuna olish havolasi",`<input class="in" id="k_s" value="${E(c.sub)}">`)}${F("Qo'llab-quvvatlash havolasi",`<input class="in" id="k_p" value="${E(c.support)}">`)}${F("Ilovaga buyurtma havolasi",`<input class="in" id="k_o" value="${E(c.order)}">`)}<button class="btn" data-a="cfsave">Saqlash</button>`};
-const keep=()=>{SITE.title=$("#k_t").value;SITE.cfg.sub=$("#k_s").value;SITE.cfg.support=$("#k_p").value;SITE.cfg.order=$("#k_o").value};
+<h4>Rang</h4><div class="chips">${["#9333ea","#e11d2e","#ff7a18","#16a34a","#0ea5e9","#ec4899"].map(x=>`<span class="sw" data-a="sc" data-v="${x}" style="background:${x};${c.accent==x?"outline:2px solid #fff":""}"></span>`).join("")}</div>
+<h4>Profil tugmalari</h4>${c.items.map((x,i)=>`<div class="two"><input class="in it_t" value="${E(x.t)}" placeholder="Nomi"><input class="in it_u" value="${E(x.u)}" placeholder="Havola (https://...)"></div><button class="bt" data-a="idel" data-i="${i}">🗑 O'chirish</button>`).join("")}${c.items.length<5?`<p><button class="bt" data-a="iadd">+ Tugma qo'shish</button></p>`:""}<p class="mu">«Ilovaga buyurtma berish» tugmasi o'zgarmaydi.</p><button class="btn" data-a="cfsave">Saqlash</button>`};
+const keep=()=>{SITE.title=$("#k_t").value;const u=document.querySelectorAll(".it_u");SITE.cfg.items=[...document.querySelectorAll(".it_t")].map((e,i)=>({t:e.value,u:u[i].value}))};
+act.iadd=()=>{keep();SITE.cfg.items.push({t:"Yangi tugma",u:""});$("#ab").innerHTML=cftab()};act.idel=d=>{keep();SITE.cfg.items.splice(+d.i,1);$("#ab").innerHTML=cftab()};
 act.sm=d=>{keep();const l=SITE.cfg.sections,i=+d.i,j=i+ +d.d;if(j<0||j>=l.length)return;[l[i],l[j]]=[l[j],l[i]];$("#ab").innerHTML=cftab()};
 act.sx=d=>{keep();const s=SITE.cfg.sections[+d.i];s.on=!s.on;$("#ab").innerHTML=cftab()};
 act.sc=d=>{keep();SITE.cfg.accent=d.v;document.documentElement.style.setProperty("--ac",d.v);$("#ab").innerHTML=cftab()};
